@@ -8,13 +8,13 @@ namespace YoungMessaging.Tests.FakeEvents{
         public bool success = false;
         public int count = 0;
         public TestingEventHandler(){}
-        public async Task<EventResult> Handle(TestingEvent @event, CancellationToken token)
+        public Task<EventResult> Handle(TestingEvent @event, CancellationToken token)
         {
             if(@event.TestString == "TestString" && @event.TestInt == 5){
                 success = true;
             }
             count++;
-            return EventResult.Success;
+            return Task.FromResult(EventResult.Success);
         }
     }
 }

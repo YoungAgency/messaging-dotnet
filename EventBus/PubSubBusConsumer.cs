@@ -142,7 +142,7 @@ namespace YoungMessaging.EventBus
             CreateTopic(topicName);
             RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
             messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)});
-            var result = publisherService.Publish(new TopicName(_busSettings.ProjectId, topicName),messages);
+            var result = await publisherService.PublishAsync(new TopicName(_busSettings.ProjectId, topicName),messages);
             if(result.MessageIds.Count <= 0) {
                 return false;
             }

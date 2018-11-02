@@ -6,6 +6,7 @@
     <Version>1.0.0</Version>
     <Authors>Marco Ciarmoli</Authors>
     <Company>Young Agency srl</Company>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Cloud.PubSub.V1" Version="1.0.0" />
