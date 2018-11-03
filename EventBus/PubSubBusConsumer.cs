@@ -93,7 +93,7 @@ namespace YoungMessaging.EventBus
             TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
             CreateTopic(topic);
             try{
-            subscriberService.CreateSubscription(subscriptionName, topicName, pushConfig:null, ackDeadlineSeconds: 2);
+            subscriberService.CreateSubscription(subscriptionName, topicName, pushConfig:null, ackDeadlineSeconds: 20);
             }
             catch(RpcException ex)
             when(ex.StatusCode == StatusCode.AlreadyExists){
