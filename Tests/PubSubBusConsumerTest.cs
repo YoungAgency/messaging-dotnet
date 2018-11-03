@@ -60,8 +60,26 @@ namespace Wallets.Tests {
            Assert.Equal(messagesCount, handler.count);
         }
 
+        [Fact]
+        public void TestPublish(){
+             //Given
+           var bus = Init();
+           TestingEventHandler handler = new TestingEventHandler();
+           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler);
+           bus.PublishAsync(new TestingEvent{TestInt=5, TestString="TestString"}).GetAwaiter().GetResult();
+           
+           int elapsed = 0;
+           TimeSpan timeout = TimeSpan.FromSeconds(15);
+           while(!handler.success && (elapsed < timeout.TotalMilliseconds)){
+               Thread.Sleep(100);
+               elapsed += 100;
+           }
+           Assert.True(handler.success);
+           Assert.Equal(1,handler.count);
+        }
+
         private void PublishMessage(){
-             // First create a topic.
+            /* // First create a topic.
             Channel channel = new Channel("localhost:8519",ChannelCredentials.Insecure);
             PublisherServiceApiClient publisherService = PublisherServiceApiClient.Create(channel);
             TopicName topicName = new TopicName("youngplatform", "testingevent");
@@ -75,7 +93,11 @@ namespace Wallets.Tests {
             TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
             RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
             messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(fakeEvent), Encoding.UTF8)});
-            var result = publisherService.Publish(topicName,messages);
+            var result = publisherService.Publish(topicName,messages);*/
+            TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
+            var bus = Init();
+            var result = bus.PublishAsync(fakeEvent).GetAwaiter().GetResult();
+            Console.Write(result.ToString());
         }
 
         private void PublishMultipleMessages(int number){

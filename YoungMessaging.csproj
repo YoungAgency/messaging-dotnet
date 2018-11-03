@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <PackageId>YoungMessaging</PackageId>
-    <Version>1.0.2</Version>
+    <Version>1.0.4</Version>
     <Authors>Marco Ciarmoli</Authors>
     <Company>Young Agency srl</Company>
     <IsPackable>true</IsPackable>

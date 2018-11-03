@@ -60,10 +60,16 @@ namespace YoungMessaging.EventBus
                                 eventMessage = JsonConvert.DeserializeObject<T>(message.Message.Data.ToStringUtf8());
                             }catch(JsonException ex){
                                 Console.WriteLine(ex.Message);
+                                successIds.Add(message.AckId);
                                 continue;
-                            } 
+                            }
+                            try{ 
                             eventMessage.EventId = message.Message.MessageId;
                             eventMessage.Timestamp = message.Message.PublishTime.Seconds * 1000;
+                            }catch(NullReferenceException ex){
+                                successIds.Add(message.AckId);
+                                continue;
+                            }
                             var invoke = handler.DynamicInvoke();
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(typeof(T));
 
@@ -129,7 +135,7 @@ namespace YoungMessaging.EventBus
 
         public async Task<bool> PublishAsync(Event message)
         {
-            var topicName = message.GetType().ToString().ToLower();
+            var topicName = message.GetType().Name.ToLower();
             string subscription = _busSettings.SubscriptionName.ToLower()+"-"+topicName.ToLower();
             PublisherServiceApiClient publisherService;
             if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
