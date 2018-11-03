@@ -99,7 +99,7 @@ namespace YoungMessaging.EventBus
             when(ex.StatusCode == StatusCode.AlreadyExists){
             }
             catch(Exception ex){
-                Console.WriteLine(ex.Message);
+                throw new Exception(ex);
             }
         }
 
@@ -123,7 +123,7 @@ namespace YoungMessaging.EventBus
             when(ex.StatusCode == StatusCode.AlreadyExists){
             }
             catch(Exception ex){
-                Console.WriteLine(ex.Message);
+                throw new Exception(ex);
             }    
         }
 
