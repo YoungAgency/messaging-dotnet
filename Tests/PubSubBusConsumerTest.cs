@@ -30,7 +30,7 @@ namespace Wallets.Tests {
             //Given
            var bus = Init();
            TestingEventHandler handler = new TestingEventHandler();
-           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler);
+           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
 
            PublishMessage();
            int elapsed = 0;
@@ -50,7 +50,7 @@ namespace Wallets.Tests {
            TestingEventHandler handler = new TestingEventHandler();
            int messagesCount = new Random().Next(1000,10000);
            PublishMultipleMessages(messagesCount);
-           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler);
+           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
            int elapsed = 0;
            TimeSpan timeout = TimeSpan.FromSeconds(15);
            while(handler.count < messagesCount && (elapsed < timeout.TotalMilliseconds)){
@@ -65,8 +65,8 @@ namespace Wallets.Tests {
              //Given
            var bus = Init();
            TestingEventHandler handler = new TestingEventHandler();
-           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler);
-           bus.PublishAsync(new TestingEvent{TestInt=5, TestString="TestString"}).GetAwaiter().GetResult();
+           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
+           bus.PublishAsync(new TestingEvent{TestInt=5, TestString="TestString"},"testingevent").GetAwaiter().GetResult();
            
            int elapsed = 0;
            TimeSpan timeout = TimeSpan.FromSeconds(15);
@@ -96,7 +96,7 @@ namespace Wallets.Tests {
             var result = publisherService.Publish(topicName,messages);*/
             TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
             var bus = Init();
-            var result = bus.PublishAsync(fakeEvent).GetAwaiter().GetResult();
+            var result = bus.PublishAsync(fakeEvent,"testingevent").GetAwaiter().GetResult();
             Console.Write(result.ToString());
         }
 

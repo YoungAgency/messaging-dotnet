@@ -22,13 +22,12 @@ namespace YoungMessaging.EventBus
             _busSettings = busSettings;
         }
 
-        public void Subscribe<T, TH>(Func<TH> handler)
+        public void Subscribe<T, TH>(Func<TH> handler,string topicName)
             where T : Event
             where TH : IEventHandler<T>
         {
             new Thread(()=>{
                 try {
-                    var topicName = typeof(T).Name.ToLower();
                     string subscription = _busSettings.SubscriptionName.ToLower()+"-"+topicName.ToLower();
                     SubscriberServiceApiClient subscriberService;
                     if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
@@ -86,7 +85,7 @@ namespace YoungMessaging.EventBus
                 catch(RpcException ex)
                 {
                     Console.WriteLine(ex.Message);
-                    new Thread(()=>Subscribe<T,TH>(handler)).Start();
+                    new Thread(()=>Subscribe<T,TH>(handler,topicName)).Start();
                     return;
                 }
             }).Start();
@@ -133,10 +132,8 @@ namespace YoungMessaging.EventBus
             }    
         }
 
-        public async Task<bool> PublishAsync(Event message)
+        public async Task<bool> PublishAsync(Event message, string topicName)
         {
-            var topicName = message.GetType().Name.ToLower();
-            string subscription = _busSettings.SubscriptionName.ToLower()+"-"+topicName.ToLower();
             PublisherServiceApiClient publisherService;
             if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
                 Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
