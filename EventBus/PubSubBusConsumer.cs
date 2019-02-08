@@ -92,11 +92,9 @@ namespace YoungMessaging.EventBus
         }
 
         private void CreateSubscription(SubscriberServiceApiClient subscriberService, string topic, string subscription){
-
-
             SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId,subscription);
             TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
-            CreateTopic(topic);
+
             try{
             subscriberService.CreateSubscription(subscriptionName, topicName, pushConfig:null, ackDeadlineSeconds: 20);
             }
@@ -108,29 +106,6 @@ namespace YoungMessaging.EventBus
             }
         }
 
-        private void CreateTopic(string topic){
-            PublisherServiceApiClient publisherService;
-            
-            if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                publisherService = PublisherServiceApiClient.Create(channel);
-            }
-            else {
-                publisherService = PublisherServiceApiClient.Create();
-            }
-
-            TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
-
-            try{
-                publisherService.CreateTopic(topicName,new Google.Api.Gax.Grpc.CallSettings(null,null,CallTiming.FromTimeout(new TimeSpan(0,0,5)),null,null,null));
-            }
-            catch(RpcException ex)
-            when(ex.StatusCode == StatusCode.AlreadyExists || ex.StatusCode == StatusCode.Unavailable){
-            }
-            catch(Exception ex){
-                throw new Exception(ex.Message);
-            }    
-        }
 
         public async Task<bool> PublishAsync(Event message, string topicName)
         {
@@ -142,7 +117,6 @@ namespace YoungMessaging.EventBus
             else {
                 publisherService = PublisherServiceApiClient.Create();
             }
-            CreateTopic(topicName);
             RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
             messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)});
             var result = await publisherService.PublishAsync(new TopicName(_busSettings.ProjectId, topicName),messages);
