@@ -15,17 +15,22 @@ using YoungMessaging.Settings;
 using YoungMessaging.Abstractions;
 using Xunit;
 using Google.Api.Gax.Grpc;
+using Xunit.Abstractions;
+using System.Diagnostics;
 
 namespace Wallets.Tests {
     public class PubSubBusConsumerTest
     {
+        ITestOutputHelper _output;
+        public PubSubBusConsumerTest(ITestOutputHelper output){
+            _output = output;
+        }
         private PubSubBusConsumer Init(){
-            BusSettings busSettings = new BusSettings{BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest"};
-            CreateTestTopic(busSettings);
+            BusSettings busSettings = new BusSettings{BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest", Token = "token"};
             PubSubBusConsumer bus = new PubSubBusConsumer(busSettings);
             return bus;
         }
-        private void CreateTestTopic(BusSettings _busSettings){
+        /*private void CreateTestTopic(BusSettings _busSettings){
             PublisherServiceApiClient publisherService;
             
             if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
@@ -47,7 +52,7 @@ namespace Wallets.Tests {
             catch(Exception ex){
                 throw new Exception(ex.Message);
             }    
-        }
+        }*/
 
         [Fact]
         public void TestSubscribe()
@@ -65,24 +70,24 @@ namespace Wallets.Tests {
                elapsed += 100;
            }
            Assert.True(handler.success);
-           Assert.Equal(1,handler.count);
+           Assert.Equal(1,handler.Count);
         }
 
         [Fact]
-        public void TestMultipleMessages(){
+        public async Task TestMultipleMessages(){
             //Given
            var bus = Init();
            TestingEventHandler handler = new TestingEventHandler();
-           int messagesCount = new Random().Next(1000,10000);
-           PublishMultipleMessages(messagesCount);
+           int messagesCount = new Random().Next(1000,2000);
            bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
+           await PublishMultipleMessages(messagesCount);
            int elapsed = 0;
-           TimeSpan timeout = TimeSpan.FromSeconds(15);
-           while(handler.count < messagesCount && (elapsed < timeout.TotalMilliseconds)){
+           TimeSpan timeout = TimeSpan.FromSeconds(30);
+           while(handler.Count < messagesCount && (elapsed < timeout.TotalMilliseconds)){
                Thread.Sleep(100);
                elapsed += 100;
            }
-           Assert.Equal(messagesCount, handler.count);
+           Assert.Equal(messagesCount, handler.Count);
         }
 
         [Fact]
@@ -100,50 +105,23 @@ namespace Wallets.Tests {
                elapsed += 100;
            }
            Assert.True(handler.success);
-           Assert.Equal(1,handler.count);
+           Assert.Equal(1,handler.Count);
         }
 
         private void PublishMessage(){
-            /* // First create a topic.
-            Channel channel = new Channel("localhost:8519",ChannelCredentials.Insecure);
-            PublisherServiceApiClient publisherService = PublisherServiceApiClient.Create(channel);
-            TopicName topicName = new TopicName("youngplatform", "testingevent");
-            try{
-                publisherService.CreateTopic(topicName);
-            }
-            catch(RpcException ex)
-            when(ex.StatusCode == StatusCode.AlreadyExists){
-            }
-            
-            TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
-            RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
-            messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(fakeEvent), Encoding.UTF8)});
-            var result = publisherService.Publish(topicName,messages);*/
             TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
             var bus = Init();
             var result = bus.PublishAsync(fakeEvent,"testingevent").GetAwaiter().GetResult();
-            Console.Write(result.ToString());
         }
 
-        private void PublishMultipleMessages(int number){
-             // First create a topic.
-            Channel channel = new Channel("localhost:8519",ChannelCredentials.Insecure);
-            PublisherServiceApiClient publisherService = PublisherServiceApiClient.Create(channel);
-            TopicName topicName = new TopicName("youngplatform", "testingevent");
-            try{
-                publisherService.CreateTopic(topicName);
-            }
-            catch(RpcException ex)
-            when(ex.StatusCode == StatusCode.AlreadyExists){
-            }
-            // Publish a message to the topic using PublisherClient.
-            
+        private async Task PublishMultipleMessages(int number){
+            var bus = Init();
             TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
             for(int i = 0; i < number; i++){
-                Thread.Sleep(5);
-                RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
-                messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(fakeEvent), Encoding.UTF8)});
-                var result = publisherService.Publish(topicName,messages);
+                var result = await bus.PublishAsync(fakeEvent,"testingevent");
+                if(!result){
+                    throw new Exception("Error publishing");
+                }
             }
         }
 

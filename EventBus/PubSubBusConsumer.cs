@@ -26,60 +26,47 @@ namespace YoungMessaging.EventBus
             where T : Event
             where TH : IEventHandler<T>
         {
-            new Thread(()=>{
+            new Thread(async()=>{
                 try {
                     string subscription = _busSettings.SubscriptionName.ToLower()+"-"+topicName.ToLower();
-                    SubscriberServiceApiClient subscriberService;
-                    if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                        Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                        subscriberService = SubscriberServiceApiClient.Create(channel);
-                    }
-                    else {
-                        subscriberService = SubscriberServiceApiClient.Create();
-                    }
-                    CreateSubscription(subscriberService,topicName, subscription);
+                    SubscriberClient subscriber;
+                    CreateSubscription(topicName, subscription);
                     // Pull messages from the subscription using SimpleSubscriber.
                     SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
-                    SubscriberServiceApiClient.StreamingPullStream stream = subscriberService.StreamingPull();
-
-                    // The first request must include the subscription name and the stream ack deadline
-                    stream.WriteAsync(new StreamingPullRequest { SubscriptionAsSubscriptionName = subscriptionName, StreamAckDeadlineSeconds = 20 }).GetAwaiter().GetResult();
-
-                    IAsyncEnumerator<StreamingPullResponse> responseStream = stream.ResponseStream;
-
-                    // Handle responses as we see them.
-                    while (responseStream.MoveNext().GetAwaiter().GetResult())
-                    {
-                        StreamingPullResponse response = responseStream.Current;
-                        RepeatedField<string> successIds = new RepeatedField<string>();
-                        foreach (ReceivedMessage message in response.ReceivedMessages)
-                        {
+                    if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
+                        Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
+                        subscriber = await SubscriberClient.CreateAsync(subscriptionName,new SubscriberClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                    }
+                    else {
+                        subscriber = await SubscriberClient.CreateAsync(subscriptionName);
+                    }
+                    await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T eventMessage;
+                            if(!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token){
+                                return SubscriberClient.Reply.Ack;
+                            }
                             try{
-                                eventMessage = JsonConvert.DeserializeObject<T>(message.Message.Data.ToStringUtf8());
+                                eventMessage = JsonConvert.DeserializeObject<T>(message.Data.ToStringUtf8());
                             }catch(JsonException ex){
                                 Console.WriteLine(ex.Message);
-                                successIds.Add(message.AckId);
-                                continue;
+                                return SubscriberClient.Reply.Ack;
                             }
                             try{ 
-                            eventMessage.EventId = message.Message.MessageId;
-                            eventMessage.Timestamp = message.Message.PublishTime.Seconds * 1000;
+                                eventMessage.EventId = message.MessageId;
+                                eventMessage.Timestamp = message.PublishTime.Seconds * 1000;
                             }catch(NullReferenceException ex){
-                                successIds.Add(message.AckId);
-                                continue;
+                                Console.WriteLine(ex.Message);
+                                return SubscriberClient.Reply.Ack;
                             }
                             var invoke = handler.DynamicInvoke();
                             var concreteType = typeof(IEventHandler<>).MakeGenericType(typeof(T));
-
-                            var resultTask = (Task<EventResult>) concreteType.GetMethod("Handle").Invoke(invoke, new object[] { eventMessage, null });
-                            EventResult result = resultTask.GetAwaiter().GetResult();
+                            EventResult result = await (Task<EventResult>) concreteType.GetMethod("Handle").Invoke(invoke, new object[] { eventMessage, null });
                             if(result == EventResult.Success)
-                                successIds.Add(message.AckId);
-                        }
-                        // Acknowledge the messages we've just seen
-                        stream.WriteAsync(new StreamingPullRequest { AckIds = { successIds } }).GetAwaiter().GetResult();
-                    }
+                                return SubscriberClient.Reply.Ack;
+                            else
+                                return SubscriberClient.Reply.Nack;
+                    });
+                    new Thread(()=>Subscribe<T,TH>(handler,topicName)).Start();
                 } 
                 // Restart when connection fail
                 catch(RpcException ex)
@@ -91,12 +78,21 @@ namespace YoungMessaging.EventBus
             }).Start();
         }
 
-        private void CreateSubscription(SubscriberServiceApiClient subscriberService, string topic, string subscription){
+        private void CreateSubscription(string topic, string subscription){
+            CreateTopic(topic);
+            SubscriberServiceApiClient subscriberService;
+            if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
+                Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
+                subscriberService = SubscriberServiceApiClient.Create(channel);
+            }
+            else {
+                subscriberService = SubscriberServiceApiClient.Create();
+            }
             SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId,subscription);
             TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
 
             try{
-            subscriberService.CreateSubscription(subscriptionName, topicName, pushConfig:null, ackDeadlineSeconds: 20);
+                subscriberService.CreateSubscription(subscriptionName, topicName, pushConfig:null, ackDeadlineSeconds: 20);
             }
             catch(RpcException ex)
             when(ex.StatusCode == StatusCode.AlreadyExists || ex.StatusCode == StatusCode.Unavailable){
@@ -106,10 +102,9 @@ namespace YoungMessaging.EventBus
             }
         }
 
-
-        public async Task<bool> PublishAsync(Event message, string topicName)
-        {
+        private void CreateTopic(string topic){
             PublisherServiceApiClient publisherService;
+            
             if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
                 Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
                 publisherService = PublisherServiceApiClient.Create(channel);
@@ -117,14 +112,42 @@ namespace YoungMessaging.EventBus
             else {
                 publisherService = PublisherServiceApiClient.Create();
             }
-            RepeatedField<PubsubMessage> messages = new RepeatedField<PubsubMessage>();
-            messages.Add(new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)});
-            var result = await publisherService.PublishAsync(new TopicName(_busSettings.ProjectId, topicName),messages);
-            if(result.MessageIds.Count <= 0) {
+
+            TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
+
+            try{
+                publisherService.CreateTopic(topicName,new Google.Api.Gax.Grpc.CallSettings(null,null,CallTiming.FromTimeout(new TimeSpan(0,0,5)),null,null,null));
+            }
+            catch(RpcException ex)
+            when(ex.StatusCode == StatusCode.AlreadyExists || ex.StatusCode == StatusCode.Unavailable){
+            }
+            catch(Exception ex){
+                throw new Exception(ex.Message);
+            }    
+        }
+
+        public async Task<bool> PublishAsync(Event message, string topicName)
+        {
+            try{
+                TopicName topic = new TopicName(_busSettings.ProjectId, topicName);
+                PublisherClient publisher;
+                if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
+                    publisher = await PublisherClient.CreateAsync(topic,new PublisherClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                }
+                else {
+                    publisher = await PublisherClient.CreateAsync(topic);
+                }
+                var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)}; 
+                pubSubMessage.Attributes["token"] = _busSettings.Token;
+                var result = await publisher.PublishAsync(pubSubMessage);
+                Console.WriteLine(result);
+                if(result == "") {
+                    return false;
+                }
+                return true;
+            } catch (Exception ex){
                 return false;
             }
-            return true;
         }
-        
     }
 }
