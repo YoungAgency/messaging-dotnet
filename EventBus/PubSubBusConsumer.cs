@@ -42,7 +42,7 @@ namespace YoungMessaging.EventBus
                     }
                     await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T eventMessage;
-                            if(!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token){
+                            if((_busSettings.Token != null && _busSettings.Token != "") && (!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token)){
                                 return SubscriberClient.Reply.Ack;
                             }
                             try{
@@ -137,8 +137,10 @@ namespace YoungMessaging.EventBus
                 else {
                     publisher = await PublisherClient.CreateAsync(topic);
                 }
-                var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)}; 
-                pubSubMessage.Attributes["token"] = _busSettings.Token;
+                var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)};
+                if(_busSettings.Token != null && _busSettings.Token != ""){
+                    pubSubMessage.Attributes["token"] = _busSettings.Token;
+                }
                 var result = await publisher.PublishAsync(pubSubMessage);
                 Console.WriteLine(result);
                 if(result == "") {
