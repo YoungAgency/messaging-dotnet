@@ -7,5 +7,9 @@ namespace YoungMessaging.Abstractions{
         void Subscribe<T,TH>(Func<TH> handler, string topicName)
             where T : Event
             where TH : IEventHandler<T>;
+
+        void SubscribeArray<T,TH>(Func<TH> handler, string topicName)
+            where T : Event
+            where TH : IArrayEventHandler<T>;
     }
 }
