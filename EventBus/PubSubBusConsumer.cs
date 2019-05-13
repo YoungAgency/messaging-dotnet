@@ -78,6 +78,60 @@ namespace YoungMessaging.EventBus
             }).Start();
         }
 
+          public void SubscribeArray<T, TH>(Func<TH> handler,string topicName)
+            where T : Event
+            where TH : IArrayEventHandler<T>
+        {
+            new Thread(async()=>{
+                try {
+                    string subscription = _busSettings.SubscriptionName.ToLower()+"-"+topicName.ToLower();
+                    SubscriberClient subscriber;
+                    CreateSubscription(topicName, subscription);
+                    // Pull messages from the subscription using SimpleSubscriber.
+                    SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
+                    if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
+                        Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
+                        subscriber = await SubscriberClient.CreateAsync(subscriptionName,new SubscriberClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                    }
+                    else {
+                        subscriber = await SubscriberClient.CreateAsync(subscriptionName);
+                    }
+                    await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
+                            T[] events;
+                            if((_busSettings.Token != null && _busSettings.Token != "") && (!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token)){
+                                return SubscriberClient.Reply.Ack;
+                            }
+                            try{
+                                events = JsonConvert.DeserializeObject<T[]>(message.Data.ToStringUtf8());
+                            }catch(JsonException ex){
+                                Console.WriteLine(ex.Message);
+                                return SubscriberClient.Reply.Ack;
+                            }
+                            for(int i = 0; i < events.Length; i++){
+                                events[i].EventId = message.MessageId;
+                                events[i].Timestamp = message.PublishTime.Seconds * 1000;
+                            }
+
+                            var invoke = handler.DynamicInvoke();
+                            var concreteType = typeof(IArrayEventHandler<>).MakeGenericType(typeof(T));
+                            EventResult result = await (Task<EventResult>) concreteType.GetMethod("Handle").Invoke(invoke,new object[]{events,null});
+                            if(result == EventResult.Success)
+                                return SubscriberClient.Reply.Ack;
+                            else
+                                return SubscriberClient.Reply.Nack;
+                    });
+                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName)).Start();
+                } 
+                // Restart when connection fail
+                catch(RpcException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName)).Start();
+                    return;
+                }
+            }).Start();
+        }
+
         private void CreateSubscription(string topic, string subscription){
             CreateTopic(topic);
             SubscriberServiceApiClient subscriberService;
@@ -127,6 +181,32 @@ namespace YoungMessaging.EventBus
         }
 
         public async Task<bool> PublishAsync(Event message, string topicName)
+        {
+            try{
+                TopicName topic = new TopicName(_busSettings.ProjectId, topicName);
+                PublisherClient publisher;
+                if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
+                    publisher = await PublisherClient.CreateAsync(topic,new PublisherClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                }
+                else {
+                    publisher = await PublisherClient.CreateAsync(topic);
+                }
+                var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)};
+                if(_busSettings.Token != null && _busSettings.Token != ""){
+                    pubSubMessage.Attributes["token"] = _busSettings.Token;
+                }
+                var result = await publisher.PublishAsync(pubSubMessage);
+                Console.WriteLine(result);
+                if(result == "") {
+                    return false;
+                }
+                return true;
+            } catch (Exception ex){
+                return false;
+            }
+        }
+
+        public async Task<bool> PublishAsync(Event[] message, string topicName)
         {
             try{
                 TopicName topic = new TopicName(_busSettings.ProjectId, topicName);

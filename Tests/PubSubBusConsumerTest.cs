@@ -127,6 +127,25 @@ namespace Wallets.Tests {
            Assert.Equal(1,handler.Count);
         }
 
+        [Fact]
+        public void TestSubscribeArray(){
+           //Given
+           BusSettings busSettings = new BusSettings{BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest", Token = ""};
+           PubSubBusConsumer bus = new PubSubBusConsumer(busSettings);
+           TestingArrayEventHandler handler = new TestingArrayEventHandler();
+           bus.SubscribeArray<TestingEvent,TestingArrayEventHandler>(()=>handler,"testingevent");
+           bus.PublishAsync(new TestingEvent[]{new TestingEvent{TestInt=5, TestString="TestString"},new TestingEvent{TestInt=5, TestString="TestString"}},"testingevent").GetAwaiter().GetResult();
+           
+           int elapsed = 0;
+           TimeSpan timeout = TimeSpan.FromSeconds(15);
+           while(!handler.success && (elapsed < timeout.TotalMilliseconds)){
+               Thread.Sleep(100);
+               elapsed += 100;
+           }
+           Assert.True(handler.success);
+           Assert.Equal(1,handler.Count);
+        }
+
         private void PublishMessage(){
             TestingEvent fakeEvent = new TestingEvent{TestInt=5, TestString="TestString"};
             var bus = Init();
