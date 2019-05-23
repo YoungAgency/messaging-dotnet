@@ -39,6 +39,7 @@ namespace YoungMessaging.EventBus
                     eventMessage = JsonConvert.DeserializeObject<T>(message);
                 }catch(JsonException ex){
                     Console.WriteLine(ex.Message);
+                    return;
                 }
                 var invoke = handler.DynamicInvoke();
                 var concreteType = typeof(IEventHandler<>).MakeGenericType(typeof(T));
