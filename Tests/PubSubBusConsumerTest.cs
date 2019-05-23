@@ -74,23 +74,6 @@ namespace Wallets.Tests {
         }
 
         [Fact]
-        public async Task TestMultipleMessages(){
-            //Given
-           var bus = Init();
-           TestingEventHandler handler = new TestingEventHandler();
-           int messagesCount = new Random().Next(1000,2000);
-           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
-           await PublishMultipleMessages(messagesCount);
-           int elapsed = 0;
-           TimeSpan timeout = TimeSpan.FromSeconds(30);
-           while(handler.Count < messagesCount && (elapsed < timeout.TotalMilliseconds)){
-               Thread.Sleep(100);
-               elapsed += 100;
-           }
-           Assert.Equal(messagesCount, handler.Count);
-        }
-
-        [Fact]
         public void TestPublish(){
              //Given
            var bus = Init();
@@ -162,7 +145,23 @@ namespace Wallets.Tests {
                 }
             }
         }
-
+        
+        [Fact]
+        public async Task TestMultipleMessages(){
+            //Given
+           var bus = Init();
+           TestingEventHandler handler = new TestingEventHandler();
+           int messagesCount = new Random().Next(200,600);
+           bus.Subscribe<TestingEvent,TestingEventHandler>(()=>handler,"testingevent");
+           await PublishMultipleMessages(messagesCount);
+           int elapsed = 0;
+           TimeSpan timeout = TimeSpan.FromSeconds(30);
+           while(handler.Count < messagesCount && (elapsed < timeout.TotalMilliseconds)){
+               Thread.Sleep(100);
+               elapsed += 100;
+           }
+           Assert.Equal(messagesCount, handler.Count);
+        }
 
     }
 }
