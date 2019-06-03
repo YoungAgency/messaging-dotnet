@@ -32,6 +32,7 @@ namespace YoungMessaging.EventBus
             if(!_conn.IsConnected) {
                 _conn = ConnectionMultiplexer.Connect(_conn.Configuration);
             }
+            _conn.PreserveAsyncOrder = true;
             var subscriber = _conn.GetSubscriber();
             subscriber.Subscribe(topicName, (channel, message)=> {
                 T eventMessage = null;
