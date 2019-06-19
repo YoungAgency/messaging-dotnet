@@ -196,7 +196,6 @@ namespace YoungMessaging.EventBus
                     pubSubMessage.Attributes["token"] = _busSettings.Token;
                 }
                 var result = await publisher.PublishAsync(pubSubMessage);
-                Console.WriteLine(result);
                 if(result == "") {
                     return false;
                 }
@@ -222,7 +221,6 @@ namespace YoungMessaging.EventBus
                     pubSubMessage.Attributes["token"] = _busSettings.Token;
                 }
                 var result = await publisher.PublishAsync(pubSubMessage);
-                Console.WriteLine(result);
                 if(result == "") {
                     return false;
                 }
