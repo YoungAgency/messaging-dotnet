@@ -22,7 +22,7 @@ namespace YoungMessaging.EventBus
             _busSettings = busSettings;
         }
 
-        public void Subscribe<T, TH>(Func<TH> handler,string topicName)
+        public void Subscribe<T, TH>(Func<TH> handler,string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IEventHandler<T>
         {
@@ -35,10 +35,25 @@ namespace YoungMessaging.EventBus
                     SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
                     if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
                         Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                        subscriber = await SubscriberClient.CreateAsync(subscriptionName,new SubscriberClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                        subscriber = await SubscriberClient.CreateAsync(
+                            subscriptionName,
+                            new SubscriberClient.ClientCreationSettings(
+                                null,
+                                null,
+                                ChannelCredentials.Insecure,
+                                new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)
+                            ),
+                            new SubscriberClient.Settings{
+                                FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)
+                            }
+                        );
                     }
                     else {
-                        subscriber = await SubscriberClient.CreateAsync(subscriptionName);
+                        subscriber = await SubscriberClient.CreateAsync(
+                            subscriptionName,
+                            null,
+                            new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
+                        );
                     }
                     await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T eventMessage;
@@ -66,19 +81,19 @@ namespace YoungMessaging.EventBus
                             else
                                 return SubscriberClient.Reply.Nack;
                     });
-                    new Thread(()=>Subscribe<T,TH>(handler,topicName)).Start();
+                    new Thread(()=>Subscribe<T,TH>(handler,topicName, maxConcurrent)).Start();
                 } 
                 // Restart when connection fail
                 catch(RpcException ex)
                 {
                     Console.WriteLine(ex.Message);
-                    new Thread(()=>Subscribe<T,TH>(handler,topicName)).Start();
+                    new Thread(()=>Subscribe<T,TH>(handler,topicName, maxConcurrent)).Start();
                     return;
                 }
             }).Start();
         }
 
-          public void SubscribeArray<T, TH>(Func<TH> handler,string topicName)
+          public void SubscribeArray<T, TH>(Func<TH> handler,string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IArrayEventHandler<T>
         {
@@ -91,10 +106,25 @@ namespace YoungMessaging.EventBus
                     SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
                     if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
                         Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                        subscriber = await SubscriberClient.CreateAsync(subscriptionName,new SubscriberClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
+                        subscriber = await SubscriberClient.CreateAsync(
+                            subscriptionName,
+                            new SubscriberClient.ClientCreationSettings(
+                                null,
+                                null,
+                                ChannelCredentials.Insecure,
+                                new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)
+                            ),
+                            new SubscriberClient.Settings{
+                                FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)
+                            }
+                        );
                     }
                     else {
-                        subscriber = await SubscriberClient.CreateAsync(subscriptionName);
+                        subscriber = await SubscriberClient.CreateAsync(
+                            subscriptionName,
+                            null,
+                            new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
+                        );
                     }
                     await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T[] events;
@@ -120,13 +150,13 @@ namespace YoungMessaging.EventBus
                             else
                                 return SubscriberClient.Reply.Nack;
                     });
-                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName)).Start();
+                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName,maxConcurrent)).Start();
                 } 
                 // Restart when connection fail
                 catch(RpcException ex)
                 {
                     Console.WriteLine(ex.Message);
-                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName)).Start();
+                    new Thread(()=>SubscribeArray<T,TH>(handler,topicName,maxConcurrent)).Start();
                     return;
                 }
             }).Start();
