@@ -33,28 +33,12 @@ namespace YoungMessaging.EventBus
                     CreateSubscription(topicName, subscription);
                     // Pull messages from the subscription using SimpleSubscriber.
                     SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
-                    if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                        Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                        subscriber = await SubscriberClient.CreateAsync(
-                            subscriptionName,
-                            new SubscriberClient.ClientCreationSettings(
-                                null,
-                                null,
-                                ChannelCredentials.Insecure,
-                                new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)
-                            ),
-                            new SubscriberClient.Settings{
-                                FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)
-                            }
-                        );
-                    }
-                    else {
-                        subscriber = await SubscriberClient.CreateAsync(
-                            subscriptionName,
-                            null,
-                            new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
-                        );
-                    }
+                    subscriber = await SubscriberClient.CreateAsync(
+                        subscriptionName,
+                        null,
+                        new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
+                    );
+                
                     await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T eventMessage;
                             if((_busSettings.Token != null && _busSettings.Token != "") && (!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token)){
@@ -104,28 +88,12 @@ namespace YoungMessaging.EventBus
                     CreateSubscription(topicName, subscription);
                     // Pull messages from the subscription using SimpleSubscriber.
                     SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId, subscription);
-                    if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                        Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                        subscriber = await SubscriberClient.CreateAsync(
-                            subscriptionName,
-                            new SubscriberClient.ClientCreationSettings(
-                                null,
-                                null,
-                                ChannelCredentials.Insecure,
-                                new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)
-                            ),
-                            new SubscriberClient.Settings{
-                                FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)
-                            }
-                        );
-                    }
-                    else {
-                        subscriber = await SubscriberClient.CreateAsync(
-                            subscriptionName,
-                            null,
-                            new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
-                        );
-                    }
+                    subscriber = await SubscriberClient.CreateAsync(
+                        subscriptionName,
+                        null,
+                        new SubscriberClient.Settings{FlowControlSettings = new Google.Api.Gax.FlowControlSettings(maxConcurrent,null)}
+                    );
+                    
                     await subscriber.StartAsync(async(PubsubMessage message, CancellationToken token)=>{
                             T[] events;
                             if((_busSettings.Token != null && _busSettings.Token != "") && (!message.Attributes.ContainsKey("token") || message.Attributes["token"] != _busSettings.Token)){
@@ -163,15 +131,9 @@ namespace YoungMessaging.EventBus
         }
 
         private void CreateSubscription(string topic, string subscription){
-            CreateTopic(topic);
             SubscriberServiceApiClient subscriberService;
-            if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                subscriberService = SubscriberServiceApiClient.Create(channel);
-            }
-            else {
-                subscriberService = SubscriberServiceApiClient.Create();
-            }
+            subscriberService = SubscriberServiceApiClient.Create();
+
             SubscriptionName subscriptionName = new SubscriptionName(_busSettings.ProjectId,subscription);
             TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
 
@@ -186,21 +148,14 @@ namespace YoungMessaging.EventBus
             }
         }
 
-        private void CreateTopic(string topic){
+        /*private void CreateTopic(string topic){
             PublisherServiceApiClient publisherService;
+            publisherService = PublisherServiceApiClient.Create();
             
-            if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                Channel channel = new Channel(_busSettings.BusHost+":"+_busSettings.BusPort,ChannelCredentials.Insecure);
-                publisherService = PublisherServiceApiClient.Create(channel);
-            }
-            else {
-                publisherService = PublisherServiceApiClient.Create();
-            }
-
             TopicName topicName = new TopicName(_busSettings.ProjectId, topic);
 
             try{
-                publisherService.CreateTopic(topicName,new Google.Api.Gax.Grpc.CallSettings(null,null,CallTiming.FromTimeout(new TimeSpan(0,0,5)),null,null,null));
+                publisherService.CreateTopic(topicName,new CallSettings(null,null, new Google.Api.Gax.Expiration(),null,null,null,null;
             }
             catch(RpcException ex)
             when(ex.StatusCode == StatusCode.AlreadyExists || ex.StatusCode == StatusCode.Unavailable){
@@ -208,19 +163,15 @@ namespace YoungMessaging.EventBus
             catch(Exception ex){
                 throw new Exception(ex.Message);
             }    
-        }
+        }*/
 
         public async Task<bool> PublishAsync(Event message, string topicName)
         {
             try{
                 TopicName topic = new TopicName(_busSettings.ProjectId, topicName);
                 PublisherClient publisher;
-                if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                    publisher = await PublisherClient.CreateAsync(topic,new PublisherClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
-                }
-                else {
-                    publisher = await PublisherClient.CreateAsync(topic);
-                }
+                publisher = await PublisherClient.CreateAsync(topic);
+                
                 var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)};
                 if(_busSettings.Token != null && _busSettings.Token != ""){
                     pubSubMessage.Attributes["token"] = _busSettings.Token;
@@ -240,12 +191,8 @@ namespace YoungMessaging.EventBus
             try{
                 TopicName topic = new TopicName(_busSettings.ProjectId, topicName);
                 PublisherClient publisher;
-                if(_busSettings.BusHost != null && _busSettings.BusHost != ""){
-                    publisher = await PublisherClient.CreateAsync(topic,new PublisherClient.ClientCreationSettings(null,null,ChannelCredentials.Insecure,new ServiceEndpoint(_busSettings.BusHost,_busSettings.BusPort)));
-                }
-                else {
-                    publisher = await PublisherClient.CreateAsync(topic);
-                }
+                publisher = await PublisherClient.CreateAsync(topic);
+                
                 var pubSubMessage = new PubsubMessage{Data= ByteString.CopyFrom(JsonConvert.SerializeObject(message), Encoding.UTF8)};
                 if(_busSettings.Token != null && _busSettings.Token != ""){
                     pubSubMessage.Attributes["token"] = _busSettings.Token;
