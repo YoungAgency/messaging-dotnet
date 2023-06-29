@@ -22,29 +22,34 @@ namespace YoungMessaging.EventBus
         public RedisPubSubConsumer(BusSettings busSettings)
         {
             _busSettings = busSettings;
-            _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost+":"+_busSettings.BusPort);
+            _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost + ":" + _busSettings.BusPort);
         }
 
-        public void Subscribe<T, TH>(Func<TH> handler, string topicName,int maxConcurrent = 1)
+        public void Subscribe<T, TH>(Func<TH> handler, string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IEventHandler<T>
         {
-            if(!_conn.IsConnected) {
+            if (!_conn.IsConnected)
+            {
                 _conn = ConnectionMultiplexer.Connect(_conn.Configuration);
             }
             _conn.PreserveAsyncOrder = true;
             var subscriber = _conn.GetSubscriber();
-            subscriber.Subscribe(topicName, (channel, message)=> {
+            subscriber.Subscribe(new RedisChannel(topicName, RedisChannel.PatternMode.Auto), (channel, message) =>
+            {
                 T eventMessage = null;
-                try{
+                try
+                {
                     eventMessage = JsonConvert.DeserializeObject<T>(message);
-                }catch(JsonException ex){
+                }
+                catch (JsonException ex)
+                {
                     Console.WriteLine(ex.Message);
                     return;
                 }
                 var invoke = handler.DynamicInvoke();
                 var concreteType = typeof(IEventHandler<>).MakeGenericType(typeof(T));
-                var task = (Task<EventResult>) concreteType.GetMethod("Handle").Invoke(invoke, new object[] { eventMessage, null });
+                var task = (Task<EventResult>)concreteType.GetMethod("Handle").Invoke(invoke, new object[] { eventMessage, null });
                 task.GetAwaiter();
             });
         }
@@ -53,20 +58,25 @@ namespace YoungMessaging.EventBus
             where T : Event
             where TH : IArrayEventHandler<T>
         {
-            if(!_conn.IsConnected) {
+            if (!_conn.IsConnected)
+            {
                 _conn = ConnectionMultiplexer.Connect(_conn.Configuration);
             }
             var subscriber = _conn.GetSubscriber();
-            subscriber.Subscribe(topicName, (channel, message)=> {
+            subscriber.Subscribe(new RedisChannel(topicName, RedisChannel.PatternMode.Auto), (channel, message) =>
+            {
                 T[] events = null;
-                try{
+                try
+                {
                     events = JsonConvert.DeserializeObject<T[]>(message);
-                }catch(JsonException ex){
+                }
+                catch (JsonException ex)
+                {
                     Console.WriteLine(ex.Message);
                 }
                 var invoke = handler.DynamicInvoke();
                 var concreteType = typeof(IArrayEventHandler<>).MakeGenericType(typeof(T));
-                var task = (Task<EventResult>) concreteType.GetMethod("Handle").Invoke(invoke, new object[] { events, null });
+                var task = (Task<EventResult>)concreteType.GetMethod("Handle").Invoke(invoke, new object[] { events, null });
                 task.GetAwaiter();
             });
         }

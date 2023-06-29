@@ -22,26 +22,28 @@ namespace YoungMessaging.EventBus
         public RedisPubSubProducer(BusSettings busSettings)
         {
             _busSettings = busSettings;
-            _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost+":"+_busSettings.BusPort);
+            _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost + ":" + _busSettings.BusPort);
         }
 
         public async Task<bool> PublishAsync(Event message, string topicName)
         {
-            if(!_conn.IsConnected) {
+            if (!_conn.IsConnected)
+            {
                 _conn = ConnectionMultiplexer.Connect(_conn.Configuration);
             }
             var publisher = _conn.GetSubscriber();
-            await publisher.PublishAsync(topicName, JsonConvert.SerializeObject(message));
+            await publisher.PublishAsync(new RedisChannel(topicName, RedisChannel.PatternMode.Auto), JsonConvert.SerializeObject(message));
             return true;
         }
 
         public async Task<bool> PublishAsync(Event[] messages, string topicName)
         {
-            if(!_conn.IsConnected) {
+            if (!_conn.IsConnected)
+            {
                 _conn = ConnectionMultiplexer.Connect(_conn.Configuration);
             }
             var publisher = _conn.GetSubscriber();
-            await publisher.PublishAsync(topicName, JsonConvert.SerializeObject(messages));
+            await publisher.PublishAsync(new RedisChannel(topicName, RedisChannel.PatternMode.Auto), JsonConvert.SerializeObject(messages));
             return true;
         }
     }
