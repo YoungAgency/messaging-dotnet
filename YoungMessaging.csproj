@@ -1,18 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <PackageId>YoungMessaging</PackageId>
-    <Version>2.1.0</Version>
+    <Version>3.0.0</Version>
     <Authors>Marco Ciarmoli</Authors>
     <Company>Young Agency srl</Company>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Google.Cloud.PubSub.V1" Version="2.4.0" />
-
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
-    <PackageReference Include="StackExchange.Redis" Version="2.2.11" />
+    <PackageReference Include="Google.Cloud.PubSub.V1" Version="3.6.0" />
+    <PackageReference Include="Moq" Version="4.18.4" />
+    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.3" />
+    <PackageReference Include="StackExchange.Redis" Version="2.6.116" />
 
   </ItemGroup>
 </Project>
