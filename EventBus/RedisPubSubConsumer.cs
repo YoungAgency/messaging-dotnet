@@ -25,7 +25,7 @@ namespace YoungMessaging.EventBus
             _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost + ":" + _busSettings.BusPort);
         }
 
-        public void Subscribe<T, TH>(Func<TH> handler, string topicName, int maxConcurrent = 1)
+        public async Task Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IEventHandler<T>
         {
@@ -47,14 +47,12 @@ namespace YoungMessaging.EventBus
                     Console.WriteLine(ex.Message);
                     return;
                 }
-                var invoke = handler.DynamicInvoke();
-                var concreteType = typeof(IEventHandler<>).MakeGenericType(typeof(T));
-                var task = (Task<EventResult>)concreteType.GetMethod("Handle").Invoke(invoke, new object[] { eventMessage, null });
-                task.GetAwaiter();
+
+                handler.Handle(eventMessage, new CancellationToken());
             });
         }
 
-        public void SubscribeArray<T, TH>(Func<TH> handler, string topicName, int maxConcurrent = 1)
+        public async Task SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IArrayEventHandler<T>
         {
@@ -74,10 +72,8 @@ namespace YoungMessaging.EventBus
                 {
                     Console.WriteLine(ex.Message);
                 }
-                var invoke = handler.DynamicInvoke();
-                var concreteType = typeof(IArrayEventHandler<>).MakeGenericType(typeof(T));
-                var task = (Task<EventResult>)concreteType.GetMethod("Handle").Invoke(invoke, new object[] { events, null });
-                task.GetAwaiter();
+
+                var result = handler.Handle(events, new CancellationToken());
             });
         }
     }
