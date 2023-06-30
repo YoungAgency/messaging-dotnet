@@ -25,7 +25,7 @@ namespace YoungMessaging.EventBus
             _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost + ":" + _busSettings.BusPort);
         }
 
-        public async Task Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 1)
+        public void Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IEventHandler<T>
         {
@@ -52,7 +52,7 @@ namespace YoungMessaging.EventBus
             });
         }
 
-        public async Task SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 1)
+        public void SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 1)
             where T : Event
             where TH : IArrayEventHandler<T>
         {
