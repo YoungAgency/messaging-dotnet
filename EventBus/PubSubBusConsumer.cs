@@ -7,24 +7,28 @@ using System.Threading;
 using YoungMessaging.Abstractions;
 using YoungMessaging.Settings;
 using Google.Protobuf;
+using Microsoft.Extensions.Logging;
 
 namespace YoungMessaging.EventBus
 {
     public class PubSubBusConsumer : IBusConsumer, IBusProducer
     {
         private readonly BusSettings _busSettings;
-        public PubSubBusConsumer(BusSettings busSettings)
+        private readonly ILogger<PubSubBusConsumer> _logger;
+
+        public PubSubBusConsumer(BusSettings busSettings, ILogger<PubSubBusConsumer> logger)
         {
             _busSettings = busSettings;
+            _logger = logger;
         }
 
-        public void Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 10)
+        public void Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 10, CancellationToken cancellationToken = default)
             where T : Event
             where TH : IEventHandler<T>
         {
             new Thread(async () =>
             {
-                while (true)
+                while (cancellationToken.IsCancellationRequested == false)
                 {
                     try
                     {
@@ -54,7 +58,7 @@ namespace YoungMessaging.EventBus
                             }
                             catch (JsonException ex)
                             {
-                                Console.WriteLine(ex.Message);
+                                _logger.LogError(ex, "Error occurred while deserializing {topicName}", topicName);
                                 return SubscriberClient.Reply.Ack;
                             }
 
@@ -65,7 +69,7 @@ namespace YoungMessaging.EventBus
                             }
                             catch (NullReferenceException ex)
                             {
-                                Console.WriteLine(ex.Message);
+                                _logger.LogError(ex, "Error occurred while setting EventId and Timestamp for {topicName}", topicName);
                                 return SubscriberClient.Reply.Ack;
                             }
 
@@ -76,27 +80,27 @@ namespace YoungMessaging.EventBus
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine(ex.Message);
+                                _logger.LogError(ex, "Error occurred while handling {topicName}", topicName);
                             }
                             return result == EventResult.Success ? SubscriberClient.Reply.Ack : SubscriberClient.Reply.Nack;
                         });
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(ex.Message);
+                        _logger.LogError(ex, "Error occurred while subscribing {topicName}, retying...", topicName);
                         await Task.Delay(1000);
                     }
                 }
             }).Start();
         }
 
-        public void SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 10)
+        public void SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 10, CancellationToken cancellationToken = default)
           where T : Event
           where TH : IArrayEventHandler<T>
         {
             new Thread(async () =>
             {
-                while (true)
+                while (cancellationToken.IsCancellationRequested == false)
                 {
                     try
                     {

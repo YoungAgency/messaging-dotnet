@@ -1,16 +1,8 @@
 using System;
-using System.Threading.Tasks;
-using Google.Cloud.PubSub.V1;
-using Grpc.Core;
 using Newtonsoft.Json;
 using System.Threading;
-using Google.Api.Gax.Grpc;
-using System.Collections.Generic;
-using Google.Protobuf.Collections;
 using YoungMessaging.Abstractions;
 using YoungMessaging.Settings;
-using Google.Protobuf;
-using System.Text;
 using StackExchange.Redis;
 
 namespace YoungMessaging.EventBus
@@ -25,7 +17,7 @@ namespace YoungMessaging.EventBus
             _conn = ConnectionMultiplexer.Connect(_busSettings.BusHost + ":" + _busSettings.BusPort);
         }
 
-        public void Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 1)
+        public void Subscribe<T, TH>(IEventHandler<T> handler, string topicName, int maxConcurrent = 1, CancellationToken cancellationToken = default)
             where T : Event
             where TH : IEventHandler<T>
         {
@@ -52,7 +44,7 @@ namespace YoungMessaging.EventBus
             });
         }
 
-        public void SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 1)
+        public void SubscribeArray<T, TH>(IArrayEventHandler<T> handler, string topicName, int maxConcurrent = 1, CancellationToken cancellationToken = default)
             where T : Event
             where TH : IArrayEventHandler<T>
         {

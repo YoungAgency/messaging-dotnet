@@ -1,22 +1,13 @@
 using System;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Cloud.PubSub.V1;
-using Google.Protobuf;
-using Google.Protobuf.Collections;
-using Grpc.Core;
 using Moq;
-using Newtonsoft.Json;
 using YoungMessaging.Tests.FakeEvents;
 using YoungMessaging.EventBus;
 using YoungMessaging.Settings;
-using YoungMessaging.Abstractions;
 using Xunit;
-using Google.Api.Gax.Grpc;
 using Xunit.Abstractions;
-using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Wallets.Tests;
 public class PubSubBusConsumerTest
@@ -29,7 +20,7 @@ public class PubSubBusConsumerTest
     private PubSubBusConsumer Init()
     {
         BusSettings busSettings = new BusSettings { BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest", Token = "token" };
-        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings);
+        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings, new Mock<ILogger<PubSubBusConsumer>>().Object);
         return bus;
     }
     /*private void CreateTestTopic(BusSettings _busSettings){
@@ -101,7 +92,7 @@ public class PubSubBusConsumerTest
     {
         //Given
         BusSettings busSettings = new BusSettings { BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest", Token = "" };
-        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings);
+        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings, new Mock<ILogger<PubSubBusConsumer>>().Object);
         TestingEventHandler handler = new TestingEventHandler();
         bus.Subscribe<TestingEvent, TestingEventHandler>(handler, "testingevent");
         bus.PublishAsync(new TestingEvent { TestInt = 5, TestString = "TestString" }, "testingevent").GetAwaiter().GetResult();
@@ -122,7 +113,7 @@ public class PubSubBusConsumerTest
     {
         //Given
         BusSettings busSettings = new BusSettings { BusHost = "localhost", BusPort = 8519, ProjectId = "youngplatform", SubscriptionName = "WalletsApiTest", Token = "" };
-        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings);
+        PubSubBusConsumer bus = new PubSubBusConsumer(busSettings, new Mock<ILogger<PubSubBusConsumer>>().Object);
         TestingArrayEventHandler handler = new TestingArrayEventHandler();
         bus.SubscribeArray<TestingEvent, TestingArrayEventHandler>(handler, "testingevent");
         bus.PublishAsync(new TestingEvent[] { new TestingEvent { TestInt = 5, TestString = "TestString" }, new TestingEvent { TestInt = 5, TestString = "TestString" } }, "testingevent").GetAwaiter().GetResult();
